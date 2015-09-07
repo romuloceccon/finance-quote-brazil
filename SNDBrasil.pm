@@ -90,7 +90,7 @@ sub snddebentures {
     $info{$symbol, 'volume'} = $qtd;
 
     foreach my $label (qw/last high low volume/) {
-      $info{$symbol, $label} =~ s/\.//;
+      $info{$symbol, $label} =~ s/\.//g;
       $info{$symbol, $label} =~ s/,/./;
     }
 
