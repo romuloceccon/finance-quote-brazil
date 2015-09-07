@@ -125,6 +125,10 @@ This module obtains the prices of Brazilian private bonds negotiated on the
 secondary market, available at http://www.debentures.com.br/exploreosnd/
 consultaadados/mercadosecundario/precosdenegociacao_f.asp.
 
+HTML::TreeBuilder::XPath is required. On Debian/Ubuntu/Linux Mint execute:
+
+    $ apt-get install libhtml-treebuilder-xpath-perl
+
 If using the module via GnuCash install this file under
 /usr/local/lib/site_perl/Finance/Quote and set FQ_LOAD_QUOTELET in your
 environment (e.g. in ~/.xsessionrc):
