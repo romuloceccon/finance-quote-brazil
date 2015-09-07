@@ -104,3 +104,41 @@ sub snddebentures {
   return %info if wantarray;
   return \%info;
 }
+
+1;
+
+=head1 NAME
+
+Finance::Quote::SNDBrasil - Get prices of Brazilian private bonds.
+
+=head1 SYNOPSIS
+
+    use Finance::Quote;
+
+    $q = Finance::Quote->new('SNDBrasil');
+
+    %bondinfo = $q->fetch('snddebentures', 'BOND1', 'BOND2', ...);
+
+=head1 DESCRIPTION
+
+This module obtains the prices of Brazilian private bonds negotiated on the
+secondary market, available at http://www.debentures.com.br/exploreosnd/
+consultaadados/mercadosecundario/precosdenegociacao_f.asp.
+
+If using the module via GnuCash install this file under
+/usr/local/lib/site_perl/Finance/Quote and set FQ_LOAD_QUOTELET in your
+environment (e.g. in ~/.xsessionrc):
+
+    export FQ_LOAD_QUOTELET="Currencies Yahoo::Brasil SNDBrasil"
+
+=head1 LABELS RETURNED
+
+The information returned may include: name, last, high, low, date, isodate,
+time, volume, currency, method, exchange and price. "last" and "price" will
+return the average price of all negotiations on the date specified.
+
+=head1 SEE ALSO
+
+http://debentures.com.br/
+
+=cut
