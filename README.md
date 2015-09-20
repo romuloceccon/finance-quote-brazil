@@ -10,6 +10,7 @@ Currently the following quoters are implemented:
 * BMFBovespa: Private bonds
 * SNDBrasil: Private bonds negotiated on the secondary market
 * TNBrasil: Tesouro Direto (government bonds)
+* HSBCBrasil: Mutual funds from HSBC Brasil bank
 
 To-do
 -----
