@@ -109,7 +109,8 @@ sub snddebentures {
 
 =head1 NAME
 
-Finance::Quote::SNDBrasil - Get prices of Brazilian private bonds.
+Finance::Quote::SNDBrasil - Get prices of Brazilian private bonds (secondary
+market).
 
 =head1 SYNOPSIS
 
