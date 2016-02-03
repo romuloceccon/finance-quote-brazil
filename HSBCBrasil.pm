@@ -91,3 +91,43 @@ sub hsbcfundos {
   return %info if wantarray;
   return \%info;
 }
+
+1;
+
+=head1 NAME
+
+Finance::Quote::HSBCBrasil - Get quotes for mutual funds managed by HSBC Brasil
+
+=head1 SYNOPSIS
+
+    use Finance::Quote;
+
+    $q = Finance::Quote->new('HSBCBrasil');
+
+    %bondinfo = $q->fetch('hsbcfundos', 'FUND1', 'FUND2', ...);
+
+=head1 DESCRIPTION
+
+This module obtains the prices of HSBC Brasil mutual funds, available at
+http://www.hsbc.com.br/1/2/br/para-voce/investimentos/tabela-de-rentabilidade
+
+HTML::TreeBuilder::XPath is required. On Debian/Ubuntu/Linux Mint execute:
+
+    $ apt-get install libhtml-treebuilder-xpath-perl
+
+If using the module via GnuCash install this file under
+/usr/local/lib/site_perl/Finance/Quote and set FQ_LOAD_QUOTELET in your
+environment (e.g. in ~/.xsessionrc):
+
+    export FQ_LOAD_QUOTELET="Currencies Yahoo::Brasil HSBCBrasil"
+
+=head1 LABELS RETURNED
+
+The information returned may include: name, last, date, isodate, time, currency,
+method, exchange and price. "price" will be set to the "last" value.
+
+=head1 SEE ALSO
+
+http://www.hsbc.com.br
+
+=cut
