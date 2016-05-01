@@ -10,7 +10,7 @@ use HTML::TreeBuilder::XPath;
 use vars qw/$BMF_URL $VERSION/;
 
 $VERSION = '0.1';
-$BMF_URL = 'http://www.bmfbovespa.com.br/rendafixa/FormDetalhePUEmissor.asp';
+$BMF_URL = 'http://bvmf.bmfbovespa.com.br/rendafixa/FormDetalhePUEmissor.asp';
 
 sub methods { return ( bmfdebentures => \&bmfdebentures ); }
 
@@ -55,7 +55,8 @@ sub bmfdebentures {
     my $emissor;
     my $pu;
 
-    foreach my $node ($tree->findnodes('/html/body//table[@class="tabDados"]/tr[last()]')) {
+    foreach my $node ($tree->findnodes(
+        '/html/body//div[@class="large-12 columns"]/table/tbody/tr[last()]')) {
       my $cols = $node->findnodes('./td');
       if ($cols->size() >= 4) {
         $data = $cols->[2]->as_text();
