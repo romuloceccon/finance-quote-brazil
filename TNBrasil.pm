@@ -2,13 +2,16 @@ use strict;
 
 package Finance::Quote::TNBrasil;
 
+use List::Util qw( min );
 use LWP::UserAgent;
 use Spreadsheet::ParseExcel;
+use HTML::TreeBuilder::XPath;
 
-use vars qw/$TN_BASE_URL $VERSION/;
+use vars qw/$TN_BASE_URL $VERSION $TN_QUOTES_INDEX/;
 
 $VERSION = '0.1';
 $TN_BASE_URL = 'http://www.tesouro.fazenda.gov.br/documents/10180/137713/';
+$TN_QUOTES_INDEX = 'http://sisweb.tesouro.gov.br/apex/';
 
 sub methods { return ( tesourodireto => \&tesourodireto ); }
 
@@ -33,26 +36,88 @@ sub tesourodireto {
   my %books;
   my $year = sprintf "%d", _current_year;
 
+  my %files;
+  my $files_msg;
+  my $files_resp = $ua->get($TN_QUOTES_INDEX . 'f?p=2031:2');
+  if ($files_resp->code == 302) {
+    my $index_url = $files_resp->header('Location');
+    my $index_cookie = $files_resp->header('Set-Cookie');
+    $index_cookie =~ s/;.*//;
+
+    my $req = HTTP::Request->new(GET => $index_url);
+    $req->header('Cookie' => $index_cookie);
+    my $resp = $ua->request($req);
+
+    if ($resp->is_success) {
+      my $message = $resp->decoded_content;
+      my $tree = HTML::TreeBuilder::XPath->new_from_content($message);
+
+      my $cur_year = '0';
+      foreach my $node ($tree->findnodes('/html/body//div[@class="apex-body"]' .
+          '//div[@class="bl-body"]/child::node()')) {
+        next unless ref($node) eq "HTML::Element";
+
+        if ($node->tag() eq 'span') {
+          $cur_year = $node->as_text();
+          $cur_year =~ /(\d+)/;
+          $cur_year = $1;
+          next;
+        }
+
+        next if ($cur_year eq '0' or $node->tag() ne 'a');
+
+        my $node_text = $node->as_text();
+        $node_text =~ s/ /_/;
+        $files{$cur_year}{$node_text} = $TN_QUOTES_INDEX . $node->attr('href');
+      }
+    }
+    else {
+      $files_msg = 'HTTP session failed while fetching index: ' . $resp->code;
+    }
+  }
+  else {
+    $files_msg = 'HTTP session failed while logging in: ' . $files_resp->code;
+  }
+
   foreach my $symbol (@symbols) {
+    if ($files_msg) {
+      $info{$symbol, 'success'} = 0;
+      $info{$symbol, 'errormsg'} = $files_msg;
+      next;
+    }
+
+    my $file_year = $symbol;
+    $file_year =~ /(\d\d)$/;
+    $file_year = '20' . $1;
+    $file_year = min $file_year, $year;
+
     my $tmp = reverse $symbol;
     $tmp =~ s/^.*?_//;
-    my $filename = reverse($tmp) . '_' . $year . '.xls';
+    my $symbol_base = reverse($tmp);
+    my $filename = $symbol_base . ' (' . $file_year . ')';
 
     unless ($books{$filename}) {
-      my $resp = $ua->get($TN_BASE_URL . $filename);
+      if (defined $files{$file_year} and defined $files{$file_year}{$symbol_base}) {
+        my $book_resp = $ua->get($files{$file_year}{$symbol_base});
 
-      if ($resp->is_success) {
-        my $book = $parser->parse($resp->content_ref);
+        if ($book_resp->is_success) {
+          my $book = $parser->parse($book_resp->content_ref);
 
-        if ($book) {
-          $books{$filename}{'book'} = $book;
+          if ($book) {
+            $books{$filename}{'book'} = $book;
+          }
+          else {
+            $books{$filename}{'error'} = 'Cannot parse book "' . $filename .
+              '": ' . $parser->error();
+          }
         }
         else {
-          $books{$filename}{'error'} = 'Cannot parse ' . $filename . ': ' . $parser->error();
+          $books{$filename}{'error'} = 'HTTP session failed while fetching ' .
+              'book "' . $filename . '": ' . $book_resp->code;
         }
       }
       else {
-        $books{$filename}{'error'} = 'HTTP session failed while fetching ' . $filename . ': ' . $resp->code;
+        $books{$filename}{'error'} = 'Cannot find book "' . $filename . '"';
       }
     }
 
@@ -145,9 +210,10 @@ This module obtains the prices of Brazilian government bonds negotiated on BM&F
 Bovespa, available at
 http://www.tesouro.fazenda.gov.br/tesouro-direto-balanco-e-estatisticas.
 
-Spreadsheet::ParseExcel is required. On Debian/Ubuntu/Linux Mint execute:
+HTML::TreeBuilder::XPath and Spreadsheet::ParseExcel are required. On
+Debian/Ubuntu/Linux Mint execute:
 
-    $ apt-get install libspreadsheet-parseexcel-perl
+    $ apt-get install libhtml-treebuilder-xpath-perl libspreadsheet-parseexcel-perl
 
 If using the module via GnuCash install this file under
 /usr/local/lib/site_perl/Finance/Quote and set FQ_LOAD_QUOTELET in your
