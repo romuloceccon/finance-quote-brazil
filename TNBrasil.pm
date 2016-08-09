@@ -131,6 +131,7 @@ sub tesourodireto {
 
     my $name = $symbol;
     $name =~ s/_/ /g;
+    $name =~ s/-//g if ($file_year < 2012);
 
     my $sheet = $book->worksheet($name);
 
@@ -147,7 +148,9 @@ sub tesourodireto {
       my $cell_3 = $sheet->get_cell($r, 3);
       my $cell_4 = $sheet->get_cell($r, 4);
 
-      last unless defined $cell_0 && defined $cell_3 && defined $cell_4;
+      last unless defined $cell_0 && defined $cell_0->value();
+      last unless defined $cell_3 && $cell_3->unformatted();
+      last unless defined $cell_4 && $cell_4->unformatted();
       last unless $cell_3->unformatted() > 0.0 && $cell_4->unformatted() > 0.0;
 
       $date = $cell_0->value();
@@ -166,7 +169,9 @@ sub tesourodireto {
     $info{$symbol, 'last'} = $bid;
     $info{$symbol, 'ask'} = $ask;
     $info{$symbol, 'bid'} = $bid;
-    $quoter->store_date(\%info, $symbol, {eurodate => $date});
+    my $datefmt = 'eurodate';
+    $datefmt = 'isodate' if ($file_year < 2012);
+    $quoter->store_date(\%info, $symbol, {$datefmt => $date});
     $info{$symbol, 'time'} = '12:00:00';
 
     $info{$symbol, 'currency'} = 'BRL';
