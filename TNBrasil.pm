@@ -132,6 +132,7 @@ sub tesourodireto {
     my $name = $symbol;
     $name =~ s/_/ /g;
     $name =~ s/-//g if ($file_year < 2012);
+    $name =~ s/Principal/Princ/ if ($file_year >= 2017);
 
     my $sheet = $book->worksheet($name);
 
