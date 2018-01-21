@@ -2,11 +2,11 @@ Finance::Quote Brazil
 =====================
 
 This is a set of Finance::Quote modules to fetch prices of Brazilian government
-and private bonds, as well as mutual funds, which, unlike BM&F Bovespa stocks,
-are not available through the standard modules.
+and private bonds, Bovespa stocks, and mutual funds available at various banks.
 
 Currently the following quoters are implemented:
 
+* ADVFNBrasil: Bovespa stocks
 * BMFBovespa: Private bonds
 * SNDBrasil: Private bonds negotiated on the secondary market
 * TNBrasil: Tesouro Direto (government bonds)
