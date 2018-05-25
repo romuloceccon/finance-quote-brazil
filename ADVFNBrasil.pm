@@ -63,13 +63,16 @@ sub advfnbovespa {
     my $message = $resp_2->decoded_content;
     my $tree = HTML::TreeBuilder::XPath->new_from_content($message);
     my @tables;
-    my $h_pos = 0;
+    my $h_pos = -1;
 
     for my $node ($tree->findnodes('/html/body//div[@id="content"]/*')) {
       my $n_class = $node->attr('class');
-      if ($node->tag ne 'div' or not $n_class or $n_class ne 'TableElement') {
+      my %classes;
+      %classes = map { $_ => 1 } split(/ /, $n_class) if $n_class;
+
+      if ($node->tag ne 'div' or not exists($classes{'TableElement'})) {
         my $n_title = $node->as_text();
-        $h_pos = @tables if ($node->tag eq 'a' and not $h_pos and
+        $h_pos = @tables if ($node->tag eq 'a' and $h_pos < 0 and
                              $n_title =~ /Cota\xe7\xf5es Hist\xf3ricas/);
         next;
       }
@@ -81,7 +84,7 @@ sub advfnbovespa {
       push @tables, \@row;
     }
 
-    if ($h_pos < 1 or @tables < $h_pos + 1 or @{$tables[0]} < 3 or
+    if ($h_pos < 0 or @tables < $h_pos + 1 or @{$tables[0]} < 3 or
         @{$tables[$h_pos]} < 7) {
       $info{$symbol, 'success'} = 0;
       $info{$symbol, 'errormsg'} = 'Cannot find historical data for symbol ' .
