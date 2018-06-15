@@ -4,24 +4,56 @@ package Finance::Quote::ADVFNBrasil;
 
 use LWP::UserAgent;
 use HTML::TreeBuilder::XPath;
+use Encode qw(encode);
 
 use vars qw/$VERSION $ADVFN_URL/;
 
 $VERSION = '0.1';
 $ADVFN_URL = 'https://br.advfn.com/common/search/exchanges/historical';
 
-sub methods { return ( advfnbovespa => \&advfnbovespa ); }
+sub methods { return ( advfnbovespa    => \&advfnbovespa,
+                       advfncurrencies => \&advfncurrencies ); }
 
 {
   my @labels = qw/name last high low date isodate time volume price p_change
                   currency method exchange/;
-  sub labels { return ( advfnbovespa => \@labels ); }
+  sub labels { return ( advfnbovespa => \@labels,
+                        advfncurrencies => \@labels ); }
 }
 
-sub advfnbovespa {
+sub find_tables {
+  my $tree = shift;
+  my $path = shift;
+  my $tables = shift;
+  my $pos = shift;
+
+  for my $node ($tree->findnodes($path)) {
+    my $n_class = $node->attr('class');
+    my %classes;
+    %classes = map { $_ => 1 } split(/ /, $n_class) if $n_class;
+
+    if ($node->tag ne 'div' or not exists($classes{'TableElement'})) {
+      my $n_title = $node->as_text();
+      $$pos = @$tables if ($node->tag eq 'a' and $$pos < 0 and
+                           $n_title =~ /Cota\xe7\xf5es Hist\xf3ricas/);
+      next;
+    }
+
+    my @row;
+    foreach my $col ($node->findnodes('.//tr[2]/td')) {
+      push @row, $col->as_text();
+    }
+    push @$tables, \@row;
+  }
+}
+
+sub advfn_request {
   my $quoter = shift;
-  my @symbols = @_;
-  return unless @symbols;
+  my $exchange = shift;
+  my $method = shift;
+  my $curr_format = shift;
+  my @symbols = @{shift()};
+
   my %info;
 
   my $ua = $quoter->user_agent;
@@ -36,7 +68,7 @@ sub advfnbovespa {
     $req_1->header('User-Agent' => 'Perl');
     $req_1->header('Content-Type' => 'application/x-www-form-urlencoded');
 
-    $req_1->content("symbol_ok=OK&symbol=BOV:${symbol}");
+    $req_1->content("symbol_ok=OK&symbol=${exchange}:${symbol}");
     my $resp_1 = $ua->request($req_1);
     my $resp_1_st = $resp_1->code;
 
@@ -65,24 +97,10 @@ sub advfnbovespa {
     my @tables;
     my $h_pos = -1;
 
-    for my $node ($tree->findnodes('/html/body//div[@id="content"]/*')) {
-      my $n_class = $node->attr('class');
-      my %classes;
-      %classes = map { $_ => 1 } split(/ /, $n_class) if $n_class;
-
-      if ($node->tag ne 'div' or not exists($classes{'TableElement'})) {
-        my $n_title = $node->as_text();
-        $h_pos = @tables if ($node->tag eq 'a' and $h_pos < 0 and
-                             $n_title =~ /Cota\xe7\xf5es Hist\xf3ricas/);
-        next;
-      }
-
-      my @row;
-      foreach my $col ($node->findnodes('.//tr[2]/td')) {
-        push @row, $col->as_text();
-      }
-      push @tables, \@row;
-    }
+    find_tables($tree, '/html/body//div[@id="quote_top"]/*',
+                \@tables, \$h_pos);
+    find_tables($tree, '/html/body//div[@id="content"]/*',
+                \@tables, \$h_pos);
 
     if ($h_pos < 0 or @tables < $h_pos + 1 or @{$tables[0]} < 3 or
         @{$tables[$h_pos]} < 7) {
@@ -96,7 +114,7 @@ sub advfnbovespa {
     $date =~ /(\w+)\W+(\w+)\W+(\w+)/;
     $date = "$1/" . $months{$2} . "/$3";
 
-    $info{$symbol, 'name'} = $tables[0][0];
+    $info{$symbol, 'name'} = encode('utf-8', $tables[0][0]);
     $info{$symbol, 'last'} = $tables[$h_pos][1];
     $info{$symbol, 'high'} = $tables[$h_pos][5];
     $info{$symbol, 'low'}  = $tables[$h_pos][4];
@@ -112,13 +130,12 @@ sub advfnbovespa {
       $info{$symbol, $label} = $v;
     }
 
-    # ensure float numbers are rounded to 2 decimal positions
     foreach my $label (qw/last high low p_change/) {
-      $info{$symbol, $label} = sprintf '%.2f', $info{$symbol, $label};
+      $info{$symbol, $label} = sprintf $curr_format, $info{$symbol, $label};
     }
 
     $info{$symbol, 'currency'}  = 'BRL';
-    $info{$symbol, 'method'}  = 'advfnbovespa';
+    $info{$symbol, 'method'}  = $method;
     $info{$symbol, 'exchange'}  = $tables[0][2];
     $info{$symbol, 'price'} = $info{$symbol, 'last'};
     $info{$symbol, 'success'}  = 1;
@@ -128,9 +145,34 @@ sub advfnbovespa {
   return \%info;
 }
 
+sub advfnbovespa {
+  my $quoter = shift;
+  my @symbols = @_;
+  return unless @symbols;
+
+  my %info = advfn_request($quoter, 'BOV', 'advfnbovespa', '%.2f',
+                           \@symbols);
+
+  return %info if wantarray;
+  return \%info;
+}
+
+sub advfncurrencies {
+  my $quoter = shift;
+  my @symbols = @_;
+  return unless @symbols;
+
+  my %info = advfn_request($quoter, 'FX', 'advfncurrencies', '%.4f',
+                           \@symbols);
+
+  return %info if wantarray;
+  return \%info;
+}
+
 =head1 NAME
 
-Finance::Quote::ADVFNBrasil - Get prices of Brazilian stocks (Bovespa).
+Finance::Quote::ADVFNBrasil - Get currency conversion rates and prices of
+Brazilian stocks (Bovespa).
 
 =head1 SYNOPSIS
 
@@ -138,12 +180,13 @@ Finance::Quote::ADVFNBrasil - Get prices of Brazilian stocks (Bovespa).
 
     $q = Finance::Quote->new('ADVFNBrasil');
 
-    %stockinfo = $q->fetch('', 'SEER3', 'QGEP3', ...);
+    %stockinfo = $q->fetch('advfnbovespa', 'SEER3', 'QGEP3', ...);
+    %currinfo  = $q->fetch('advfncurrencies', 'USDBRL', ...);
 
 =head1 DESCRIPTION
 
-This module obtains the prices of Brazilian stocks negotiated on Bovespa,
-available at https://br.advfn.com/.
+This module obtains currency conversion rates and the prices of Brazilian
+stocks negotiated on Bovespa, available at https://br.advfn.com/.
 
 HTML::TreeBuilder::XPath is required. On Debian/Ubuntu/Linux Mint execute:
 
