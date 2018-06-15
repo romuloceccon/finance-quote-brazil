@@ -6,7 +6,7 @@ and private bonds, Bovespa stocks, and mutual funds available at various banks.
 
 Currently the following quoters are implemented:
 
-* ADVFNBrasil: Bovespa stocks
+* ADVFNBrasil: Currency rates and Bovespa stocks
 * BMFBovespa: Private bonds
 * SNDBrasil: Private bonds negotiated on the secondary market
 * TNBrasil: Tesouro Direto (government bonds)
