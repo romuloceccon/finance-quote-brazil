@@ -19,6 +19,33 @@ sub methods { return ( advfncurrencies => \&advfncurrencies ); }
   sub labels { return ( advfncurrencies => \@labels ); }
 }
 
+sub find_tables {
+  my $tree = shift;
+  my $path = shift;
+  my $tables = shift;
+  my $pos = shift;
+
+  for my $node ($tree->findnodes($path)) {
+    print $node->tag . "\n";
+    my $n_class = $node->attr('class');
+    my %classes;
+    %classes = map { $_ => 1 } split(/ /, $n_class) if $n_class;
+
+    if ($node->tag ne 'div' or not exists($classes{'TableElement'})) {
+      my $n_title = $node->as_text();
+      $$pos = @$tables if ($node->tag eq 'a' and $$pos < 0 and
+                           $n_title =~ /Cota\xe7\xf5es Hist\xf3ricas/);
+      next;
+    }
+
+    my @row;
+    foreach my $col ($node->findnodes('.//tr[2]/td')) {
+      push @row, $col->as_text();
+    }
+    push @$tables, \@row;
+  }
+}
+
 sub advfncurrencies {
   my $quoter = shift;
   my @symbols = @_;
@@ -66,40 +93,10 @@ sub advfncurrencies {
     my @tables;
     my $h_pos = -1;
 
-    for my $node ($tree->findnodes('/html/body//div[@id="quote_top"]/*')) {
-      my $n_class = $node->attr('class');
-      my %classes;
-      %classes = map { $_ => 1 } split(/ /, $n_class) if $n_class;
-
-      if ($node->tag ne 'div' or not exists($classes{'TableElement'})) {
-        next;
-      }
-
-      my @row;
-      foreach my $col ($node->findnodes('.//tr[2]/td')) {
-        push @row, $col->as_text();
-      }
-      push @tables, \@row;
-    }
-
-    for my $node ($tree->findnodes('/html/body//div[@id="content"]/*')) {
-      my $n_class = $node->attr('class');
-      my %classes;
-      %classes = map { $_ => 1 } split(/ /, $n_class) if $n_class;
-
-      if ($node->tag ne 'div' or not exists($classes{'TableElement'})) {
-        my $n_title = $node->as_text();
-        $h_pos = @tables if ($node->tag eq 'a' and $h_pos < 0 and
-                             $n_title =~ /Cota\xe7\xf5es Hist\xf3ricas/);
-        next;
-      }
-
-      my @row;
-      foreach my $col ($node->findnodes('.//tr[2]/td')) {
-        push @row, $col->as_text();
-      }
-      push @tables, \@row;
-    }
+    find_tables($tree, '/html/body//div[@id="quote_top"]/*',
+                \@tables, \$h_pos);
+    find_tables($tree, '/html/body//div[@id="content"]/*',
+                \@tables, \$h_pos);
 
     if ($h_pos < 0 or @tables < $h_pos + 1 or @{$tables[0]} < 3 or
         @{$tables[$h_pos]} < 7) {
